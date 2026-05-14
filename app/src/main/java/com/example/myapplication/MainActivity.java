@@ -128,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
 
         // 列表
         eventAdapter = new EventAdapter();
+        eventAdapter.setPrefs(getSharedPreferences("deepnews_prefs", MODE_PRIVATE));
         eventAdapter.setOnEventClickListener(event -> {
             Intent intent = new Intent(this, DetailActivity.class);
             intent.putExtra(DetailActivity.EXTRA_TITLE, event.title);
@@ -190,6 +191,12 @@ public class MainActivity extends AppCompatActivity {
         // ===== 数据 =====
         viewModel.loadCacheThenFetch();
         log.d("MainActivity 创建完成");
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        eventAdapter.refreshReadStatus();
     }
 
     private void updateEmptyState() {

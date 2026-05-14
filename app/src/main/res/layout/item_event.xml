@@ -12,46 +12,82 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="12dp">
 
+        <!-- 源标识圆形图标 -->
+        <TextView
+            android:id="@+id/event_badge"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="头"
+            tools:visibility="visible" />
+
+        <!-- 标题 -->
         <TextView
             android:id="@+id/event_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
             android:lineSpacingExtra="4dp"
             android:textColor="?attr/colorOnSurface"
             android:textSize="17sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/event_badge"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="美欧达成气候行动新协议" />
 
+        <!-- 已读标记 -->
+        <TextView
+            android:id="@+id/event_read_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="已读"
+            android:textColor="@color/status_normal"
+            android:textSize="11sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/event_title"
+            app:layout_constraintStart_toEndOf="@id/event_title"
+            tools:visibility="visible" />
+
+        <!-- 摘要 -->
         <TextView
             android:id="@+id/event_summary"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
             android:layout_marginTop="8dp"
             android:lineSpacingExtra="3dp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/event_badge"
             app:layout_constraintTop_toBottomOf="@id/event_title"
             tools:text="美国和欧盟在布鲁塞尔达成气候合作新协议，承诺2030年前减排50%。" />
 
+        <!-- 信源 -->
         <TextView
             android:id="@+id/event_sources"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
             android:layout_marginTop="10dp"
             android:textColor="?attr/colorPrimary"
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/event_badge"
             app:layout_constraintTop_toBottomOf="@id/event_summary"
             tools:text="路透社 · CNN · 新华社" />
 
+        <!-- 报道数 -->
         <TextView
             android:id="@+id/event_count"
             android:layout_width="wrap_content"

@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.myapplication.R;
 import com.example.myapplication.ui.webview.WebViewActivity;
+import com.example.myapplication.util.ReadTracker;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,6 +28,11 @@ public class DetailActivity extends AppCompatActivity {
     public static final String EXTRA_ARTICLE_TITLES = "article_titles";
     public static final String EXTRA_SOURCES = "sources";
 
+    private SharedPreferences prefs;
+    private ArticleListAdapter adapter;
+    private ArrayList<String> articleUrls;
+    private ArrayList<String> articleTitles;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -37,6 +43,8 @@ public class DetailActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        prefs = getSharedPreferences("deepnews_prefs", MODE_PRIVATE);
 
         findViewById(R.id.detail_back).setOnClickListener(v -> finish());
 
@@ -50,8 +58,8 @@ public class DetailActivity extends AppCompatActivity {
         String title = intent.getStringExtra(EXTRA_TITLE);
         String summary = intent.getStringExtra(EXTRA_SUMMARY);
         String sources = intent.getStringExtra(EXTRA_SOURCES);
-        ArrayList<String> articleUrls = intent.getStringArrayListExtra(EXTRA_ARTICLE_URLS);
-        ArrayList<String> articleTitles = intent.getStringArrayListExtra(EXTRA_ARTICLE_TITLES);
+        articleUrls = intent.getStringArrayListExtra(EXTRA_ARTICLE_URLS);
+        articleTitles = intent.getStringArrayListExtra(EXTRA_ARTICLE_TITLES);
 
         titleText.setText(title != null && !title.isEmpty() ? title : "事件详情");
         summaryText.setText(summary != null && !summary.isEmpty() ? summary : "暂无摘要信息");
@@ -61,13 +69,15 @@ public class DetailActivity extends AppCompatActivity {
                 && articleTitles != null && !articleTitles.isEmpty();
 
         if (hasArticles) {
-            // 加载已读状态
-            SharedPreferences prefs = getSharedPreferences("deepnews_prefs", MODE_PRIVATE);
-            Set<String> readUrls = prefs.getStringSet("read_articles", new HashSet<>());
+            Set<String> readUrls = ReadTracker.getReadUrls(prefs);
 
-            ArticleListAdapter adapter = new ArticleListAdapter(articleTitles, articleUrls);
+            adapter = new ArticleListAdapter(articleTitles, articleUrls);
             adapter.setReadUrls(readUrls);
             adapter.setOnItemClickListener((url, articleTitle) -> {
+                // 标记已读
+                ReadTracker.markAsRead(prefs, url);
+                adapter.setReadUrls(ReadTracker.getReadUrls(prefs));
+
                 Intent webIntent = new Intent(this, WebViewActivity.class);
                 webIntent.putExtra(WebViewActivity.EXTRA_URL, url);
                 webIntent.putExtra(WebViewActivity.EXTRA_TITLE, articleTitle);
@@ -79,6 +89,14 @@ public class DetailActivity extends AppCompatActivity {
         } else {
             articleList.setVisibility(android.view.View.GONE);
             if (emptyText != null) emptyText.setVisibility(android.view.View.VISIBLE);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (adapter != null) {
+            adapter.setReadUrls(ReadTracker.getReadUrls(prefs));
         }
     }
 }

@@ -12,29 +12,49 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="12dp">
 
+        <!-- 源标识圆形图标 -->
+        <TextView
+            android:id="@+id/news_badge"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:text="头"
+            tools:visibility="visible" />
+
+        <!-- 标题 -->
         <TextView
             android:id="@+id/news_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
             android:lineSpacingExtra="4dp"
             android:textSize="16sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/news_badge"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Breaking News: Major Event Happens Today" />
 
+        <!-- 来源 -->
         <TextView
             android:id="@+id/news_source"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="6dp"
             android:textColor="?attr/colorSecondary"
             android:textSize="13sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/news_badge"
             app:layout_constraintTop_toBottomOf="@id/news_title"
             tools:text="BBC News" />
 

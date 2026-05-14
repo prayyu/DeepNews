@@ -26,6 +26,10 @@ gradlew.bat assembleDebug
 ./gradlew clean
 ```
 
+## 远程仓库
+
+- **阿里云效 Codeup**: https://codeup.aliyun.com/69c4a166405bafb07e124740/news.git
+
 ## Architecture
 
 This is a single-module Android app using **Java** (not Kotlin). The project uses Gradle with Kotlin DSL and a version catalog.

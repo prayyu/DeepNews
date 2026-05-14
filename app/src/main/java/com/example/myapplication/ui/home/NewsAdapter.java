@@ -1,5 +1,6 @@
 package com.example.myapplication.ui.home;
 
+import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,14 +11,20 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.myapplication.R;
 import com.example.myapplication.api.NewsArticle;
+import com.example.myapplication.util.BadgeUtils;
+import com.example.myapplication.util.ReadTracker;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class NewsAdapter extends RecyclerView.Adapter<NewsAdapter.ViewHolder> {
 
     private List<NewsArticle> articles = new ArrayList<>();
     private OnItemClickListener listener;
+    private SharedPreferences prefs;
+    private Set<String> readUrls = new HashSet<>();
 
     public interface OnItemClickListener {
         void onItemClick(NewsArticle article);
@@ -32,6 +39,20 @@ public class NewsAdapter extends RecyclerView.Adapter<NewsAdapter.ViewHolder> {
         this.listener = listener;
     }
 
+    public void setPrefs(SharedPreferences prefs) {
+        this.prefs = prefs;
+        if (prefs != null) {
+            this.readUrls = ReadTracker.getReadUrls(prefs);
+        }
+    }
+
+    public void refreshReadStatus() {
+        if (prefs != null) {
+            this.readUrls = ReadTracker.getReadUrls(prefs);
+            notifyDataSetChanged();
+        }
+    }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -44,8 +65,24 @@ public class NewsAdapter extends RecyclerView.Adapter<NewsAdapter.ViewHolder> {
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         NewsArticle article = articles.get(position);
         holder.titleText.setText(article.title != null ? article.title : "");
-        holder.sourceText.setText(article.source != null ? article.source.name : "");
+
+        String sourceName = article.source != null ? article.source.name : "";
+        holder.sourceText.setText(sourceName);
+
+        // 源标识圆形图标
+        BadgeUtils.setBadge(holder.badgeText, sourceName);
+
+        // 已读状态
+        boolean isRead = readUrls.contains(article.url);
+        holder.titleText.setAlpha(isRead ? 0.6f : 1.0f);
+
         holder.itemView.setOnClickListener(v -> {
+            // 标记为已读
+            if (prefs != null && article.url != null) {
+                ReadTracker.markAsRead(prefs, article.url);
+                readUrls = ReadTracker.getReadUrls(prefs);
+                notifyItemChanged(position);
+            }
             if (listener != null) listener.onItemClick(article);
         });
     }
@@ -58,11 +95,13 @@ public class NewsAdapter extends RecyclerView.Adapter<NewsAdapter.ViewHolder> {
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView titleText;
         TextView sourceText;
+        TextView badgeText;
 
         ViewHolder(View itemView) {
             super(itemView);
             titleText = itemView.findViewById(R.id.news_title);
             sourceText = itemView.findViewById(R.id.news_source);
+            badgeText = itemView.findViewById(R.id.news_badge);
         }
     }
 }
