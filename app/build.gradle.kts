@@ -13,7 +13,7 @@ val localProps: Properties by lazy {
 }
 
 android {
-    namespace = "com.example.myapplication"
+    namespace = "com.deepnews.app"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
+        applicationId = "com.deepnews.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -31,11 +31,17 @@ android {
 
         buildConfigField("String", "NEWS_API_KEY", "\"${localProps.getProperty("news.api.key", "")}\"")
         buildConfigField("String", "LLM_API_KEY", "\"${localProps.getProperty("llm.api.key", "")}\"")
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments["room.schemaLocation"] = "$projectDir/schemas"
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

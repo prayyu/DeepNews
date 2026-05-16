@@ -9,3 +9,5 @@
 .cxx
 local.properties
 .claude/
+# Room schema 导出
+app/schemas/

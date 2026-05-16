@@ -9,31 +9,36 @@
         android:id="@+id/settings_toolbar"
         android:layout_width="0dp"
         android:layout_height="56dp"
-        app:cardElevation="2dp"
+        app:cardElevation="0dp"
         app:contentPadding="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        app:strokeWidth="0dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingHorizontal="8dp">
+            android:paddingHorizontal="4dp">
 
-            <TextView
+            <ImageButton
                 android:id="@+id/settings_back"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:gravity="center"
-                android:text="←"
-                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="12dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_arrow_back"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="?attr/colorOnSurfaceVariant" />
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:gravity="center"
+                android:paddingEnd="48dp"
                 android:text="@string/nav_settings"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -44,16 +49,25 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <View
+        android:id="@+id/settings_divider"
+        android:layout_width="0dp"
+        android:layout_height="0.5dp"
+        android:background="?attr/colorOutlineVariant"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/settings_toolbar" />
+
     <!-- 深色模式开关 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/dark_mode_row"
         android:layout_width="0dp"
         android:layout_height="56dp"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/settings_toolbar">
+        app:layout_constraintTop_toBottomOf="@id/settings_divider">
 
         <TextView
             android:layout_width="0dp"
@@ -73,11 +87,21 @@
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0.5dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="?attr/colorOutlineVariant"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dark_mode_row" />
+
     <TextView
         android:id="@+id/settings_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="16dp"
         android:text="@string/settings_keywords"
         android:textSize="16sp"
         android:textStyle="bold"
@@ -116,19 +140,30 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/keyword_input_layout" />
 
-    <TextView
-        android:id="@+id/keyword_list"
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/keyword_card"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_margin="16dp"
-        android:background="@color/surface_variant"
-        android:gravity="top"
-        android:padding="16dp"
-        android:textSize="14sp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp"
         app:layout_constraintBottom_toTopOf="@id/btn_about"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btn_add_keyword" />
+        app:layout_constraintTop_toBottomOf="@id/btn_add_keyword"
+        app:strokeColor="?attr/colorOutlineVariant"
+        app:strokeWidth="1dp">
+
+        <TextView
+            android:id="@+id/keyword_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="top"
+            android:padding="16dp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp" />
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
         android:id="@+id/btn_about"
@@ -138,6 +173,7 @@
         android:text="@string/settings_about"
         android:textColor="?attr/colorPrimary"
         android:textSize="14sp"
+        android:background="?attr/selectableItemBackgroundBorderless"
         app:layout_constraintBottom_toTopOf="@id/btn_clear_keywords"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

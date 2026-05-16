@@ -31,12 +31,12 @@
         android:layout_marginHorizontal="12dp"
         android:layout_marginTop="6dp"
         app:cardCornerRadius="22dp"
-        app:cardElevation="1dp"
+        app:cardElevation="0dp"
         app:contentPadding="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tab_layout"
-        app:strokeColor="?attr/colorOutline"
+        app:strokeColor="?attr/colorOutlineVariant"
         app:strokeWidth="1dp">
 
         <LinearLayout
@@ -66,15 +66,15 @@
                 android:maxLines="1"
                 android:textSize="14sp" />
 
-            <TextView
+            <ImageButton
                 android:id="@+id/search_clear"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
-                android:gravity="center"
-                android:text="✕"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="14sp"
-                android:visibility="gone" />
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_clear"
+                android:visibility="gone"
+                app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -137,20 +137,28 @@
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- 空状态 -->
-    <TextView
+    <LinearLayout
         android:id="@+id/empty_state"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:gravity="center"
+        android:orientation="vertical"
         android:padding="48dp"
-        android:text="@string/empty_state"
-        android:textSize="14sp"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/bottom_nav"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/search_bar"
-        tools:visibility="visible" />
+        tools:visibility="visible">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/empty_state"
+            android:textAlignment="center"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp" />
+    </LinearLayout>
 
     <!-- 底部导航栏 -->
     <com.google.android.material.bottomnavigation.BottomNavigationView

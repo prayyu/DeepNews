@@ -17,7 +17,7 @@ gradlew.bat assembleDebug
 ./gradlew test
 
 # Run a single unit test class
-./gradlew test --tests "com.example.myapplication.ExampleUnitTest"
+./gradlew test --tests "com.deepnews.app.ExampleUnitTest"
 
 # Run instrumented tests (requires connected device/emulator)
 ./gradlew connectedAndroidTest
@@ -34,7 +34,7 @@ gradlew.bat assembleDebug
 
 This is a single-module Android app using **Java** (not Kotlin). The project uses Gradle with Kotlin DSL and a version catalog.
 
-- **Package**: `com.example.myapplication`
+- **Package**: `com.deepnews.app`
 - **API levels**: minSdk 26 (Android 8.0), targetSdk/compileSdk 36
 - **Java version**: 11
 - **Theme**: Material3 DayNight (defined in `res/values/themes.xml`)
