@@ -7,35 +7,19 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <!-- 频道 Tab 栏 -->
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tab_layout"
-        android:layout_width="0dp"
-        android:layout_height="48dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:tabMode="fixed"
-        app:tabSelectedTextColor="?attr/colorPrimary"
-        app:tabTextColor="?attr/colorOnSurfaceVariant"
-        app:tabIndicatorHeight="3dp"
-        app:tabIndicatorColor="?attr/colorPrimary"
-        app:tabRippleColor="@android:color/transparent"
-        tools:tabTitles="@array/source_names" />
-
     <!-- 搜索栏 -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/search_bar"
         android:layout_width="0dp"
         android:layout_height="44dp"
         android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         app:cardCornerRadius="22dp"
         app:cardElevation="0dp"
         app:contentPadding="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tab_layout"
+        app:layout_constraintTop_toTopOf="parent"
         app:strokeColor="?attr/colorOutlineVariant"
         app:strokeWidth="1dp">
 
@@ -78,6 +62,27 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- 来源筛选 Chip -->
+    <HorizontalScrollView
+        android:id="@+id/chip_scroll"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:paddingHorizontal="12dp"
+        android:scrollbars="none"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/search_bar">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="false"
+            app:chipSpacingHorizontal="8dp" />
+    </HorizontalScrollView>
+
     <!-- 状态文字 -->
     <TextView
         android:id="@+id/status_text"
@@ -89,8 +94,8 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/search_bar"
-        tools:text="正在获取今日头条..."
+        app:layout_constraintTop_toBottomOf="@id/chip_scroll"
+        tools:text="正在获取..."
         tools:visibility="visible" />
 
     <!-- 骨架屏（加载时显示） -->
@@ -148,7 +153,7 @@
         app:layout_constraintBottom_toTopOf="@id/bottom_nav"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/search_bar"
+        app:layout_constraintTop_toBottomOf="@id/chip_scroll"
         tools:visibility="visible">
 
         <TextView

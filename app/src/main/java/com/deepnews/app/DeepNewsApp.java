@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
+import com.deepnews.app.leancloud.LocalAuthManager;
 import com.deepnews.app.util.Logger;
 import com.deepnews.app.util.PrefsKeys;
 
@@ -26,5 +27,8 @@ public class DeepNewsApp extends Application {
         AppCompatDelegate.setDefaultNightMode(
                 isDark ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
         log.d("深色模式: " + (isDark ? "开启" : "关闭"));
+
+        // 初始化本地认证
+        LocalAuthManager.getInstance().init(this);
     }
 }

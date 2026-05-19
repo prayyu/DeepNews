@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.deepnews.app.data.NewsRepository;
+import com.deepnews.app.ui.account.AccountActivity;
 import com.deepnews.app.ui.bookmark.BookmarkActivity;
 import com.deepnews.app.ui.brief.DailyBriefActivity;
 import com.deepnews.app.ui.detail.DetailActivity;
@@ -32,7 +33,8 @@ import com.deepnews.app.ui.settings.SettingsActivity;
 import com.deepnews.app.util.Logger;
 import com.deepnews.app.util.PrefsKeys;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 
 import java.util.ArrayList;
 
@@ -48,7 +50,6 @@ public class MainActivity extends AppCompatActivity {
     private View skeletonLayout;
     private EditText searchInput;
     private View searchClear;
-    private TabLayout tabLayout;
 
     private final ActivityResultLauncher<Intent> settingsLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -82,24 +83,31 @@ public class MainActivity extends AppCompatActivity {
         skeletonLayout = findViewById(R.id.skeleton_layout);
         searchInput = findViewById(R.id.search_input);
         searchClear = findViewById(R.id.search_clear);
-        tabLayout = findViewById(R.id.tab_layout);
+        ChipGroup chipGroup = findViewById(R.id.chip_group);
         BottomNavigationView bottomNav = findViewById(R.id.bottom_nav);
 
-        // Tab 栏
-        for (String name : MainViewModel.SOURCE_NAMES) {
-            tabLayout.addTab(tabLayout.newTab().setText(name));
+        // 来源筛选 Chip
+        for (int i = 0; i < MainViewModel.SOURCE_NAMES.length; i++) {
+            Chip chip = new Chip(this);
+            chip.setText(MainViewModel.SOURCE_NAMES[i]);
+            chip.setTag(i);
+            chip.setClickable(true);
+            chip.setCheckable(true);
+            chip.setTextSize(13);
+            chip.setEnsureMinTouchTargetSize(false);
+            chip.setChipBackgroundColorResource(android.R.color.transparent);
+            chip.setChipStrokeWidth(1f);
+            chip.setChipCornerRadius(32f);
+            chipGroup.addView(chip);
+
+            if (i == 0) chip.setChecked(true);
         }
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override public void onTabSelected(TabLayout.Tab tab) {
-                viewModel.switchSource(tab.getPosition());
-                searchInput.setText("");
-            }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override public void onTabReselected(TabLayout.Tab tab) {
-                if (viewModel.getIsLoading().getValue() != Boolean.TRUE) {
-                    viewModel.switchSource(tab.getPosition());
-                }
-            }
+        chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) return;
+            Chip selected = findViewById(checkedIds.get(0));
+            int index = (int) selected.getTag();
+            viewModel.switchSource(index);
+            searchInput.setText("");
         });
 
         // 搜索
@@ -181,6 +189,9 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             } else if (id == R.id.nav_bookmark) {
                 startActivity(new Intent(this, BookmarkActivity.class));
+                return true;
+            } else if (id == R.id.nav_person) {
+                startActivity(new Intent(this, AccountActivity.class));
                 return true;
             } else if (id == R.id.nav_settings) {
                 settingsLauncher.launch(new Intent(this, SettingsActivity.class));

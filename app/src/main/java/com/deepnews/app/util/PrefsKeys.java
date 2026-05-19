@@ -21,5 +21,11 @@ public final class PrefsKeys {
     /** 简报日期 (String) */
     public static final String BRIEF_DATE = "brief_date";
 
+    /** 注册用户 JSON (String): { "username": "sha256hash", ... } */
+    public static final String USERS = "users";
+
+    /** 当前登录用户 (String): 空串表示未登录 */
+    public static final String LOGGED_IN_USER = "logged_in_user";
+
     private PrefsKeys() {}
 }
