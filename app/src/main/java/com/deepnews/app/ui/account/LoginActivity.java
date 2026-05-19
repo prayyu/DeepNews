@@ -16,6 +16,9 @@ import androidx.core.view.WindowInsetsCompat;
 import com.deepnews.app.R;
 import com.deepnews.app.leancloud.LocalAuthManager;
 
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class LoginActivity extends AppCompatActivity {
 
     private EditText usernameInput;

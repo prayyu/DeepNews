@@ -29,6 +29,9 @@ import com.deepnews.app.util.PrefsKeys;
 
 import java.util.HashSet;
 
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class WebViewActivity extends AppCompatActivity {
 
     public static final String EXTRA_URL = "url";

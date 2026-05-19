@@ -1,7 +1,5 @@
 package com.deepnews.app.data;
 
-import android.content.Context;
-
 import com.deepnews.app.BuildConfig;
 import com.deepnews.app.api.EventCluster;
 import com.deepnews.app.api.HotListClient;
@@ -12,6 +10,7 @@ import com.deepnews.app.api.NewsResponse;
 import com.deepnews.app.api.RetrofitClient;
 import com.deepnews.app.data.entity.ArticleEntity;
 import com.deepnews.app.data.entity.EventEntity;
+import com.deepnews.app.util.AppExecutors;
 import com.deepnews.app.util.Logger;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -20,9 +19,11 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 数据仓库，统一管理网络数据获取、LLM 聚类和本地缓存。
@@ -31,7 +32,6 @@ import java.util.Map;
 public class NewsRepository {
 
     private static final Logger log = Logger.get(NewsRepository.class);
-    private static NewsRepository instance;
 
     private final AppDatabase database;
     private final Gson gson = new Gson();
@@ -50,22 +50,15 @@ public class NewsRepository {
         void onResult(List<EventCluster> clusters);
     }
 
-    private NewsRepository(AppDatabase database) {
+    public NewsRepository(AppDatabase database) {
         this.database = database;
-    }
-
-    public static synchronized NewsRepository getInstance(Context context) {
-        if (instance == null) {
-            instance = new NewsRepository(AppDatabase.getInstance(context.getApplicationContext()));
-            log.d("Repository 初始化完成");
-        }
-        return instance;
+        log.d("Repository 初始化完成");
     }
 
     // ==================== 缓存 ====================
 
     public void loadCache(OnCacheResult callback) {
-        new Thread(() -> {
+        AppExecutors.getInstance().diskIO().execute(() -> {
             List<EventEntity> cached = database.eventDao().getAllEvents();
             if (!cached.isEmpty()) {
                 log.d("从缓存加载了 " + cached.size() + " 个事件");
@@ -84,14 +77,14 @@ public class NewsRepository {
                 log.d("缓存为空");
                 callback.onCacheLoaded(new ArrayList<>());
             }
-        }).start();
+        });
     }
 
     // ==================== 搜索 ====================
 
     /** 在缓存的文章中搜索关键词 */
     public void searchArticles(String query, OnSearchResult callback) {
-        new Thread(() -> {
+        AppExecutors.getInstance().diskIO().execute(() -> {
             List<ArticleEntity> matches = database.newsDao().searchArticles("%" + query + "%");
             if (matches.isEmpty()) {
                 callback.onResult(new ArrayList<>());
@@ -115,7 +108,105 @@ public class NewsRepository {
                 if (a.source != null && !cluster.sources.contains(a.source)) cluster.sources.add(a.source);
             }
             callback.onResult(new ArrayList<>(clusterMap.values()));
-        }).start();
+        });
+    }
+
+    /** 搜索（本地缓存 + 在线补充），本地结果不足 3 个时触发在线搜索 */
+    public void searchOnline(String query, OnSearchResult callback) {
+        AppExecutors.getInstance().diskIO().execute(() -> {
+            // 1. 搜索本地缓存
+            List<ArticleEntity> localMatches = database.newsDao().searchArticles("%" + query + "%");
+            Map<String, EventCluster> clusterMap = new LinkedHashMap<>();
+            for (ArticleEntity a : localMatches) {
+                String key = a.eventTitle != null ? a.eventTitle : "搜索结果";
+                EventCluster cluster = clusterMap.get(key);
+                if (cluster == null) {
+                    cluster = new EventCluster();
+                    cluster.title = key;
+                    cluster.summary = a.title;
+                    cluster.sources = new ArrayList<>();
+                    cluster.articleUrls = new ArrayList<>();
+                    cluster.articleTitles = new ArrayList<>();
+                    clusterMap.put(key, cluster);
+                }
+                if (a.url != null) cluster.articleUrls.add(a.url);
+                if (a.title != null) cluster.articleTitles.add(a.title);
+                if (a.source != null && !cluster.sources.contains(a.source)) cluster.sources.add(a.source);
+            }
+
+            int localCount = clusterMap.size();
+            if (localCount >= 3) {
+                callback.onResult(new ArrayList<>(clusterMap.values()));
+                return;
+            }
+
+            // 2. 本地结果不足，触发在线搜索
+            log.d("本地搜索结果不足，触发在线搜索: " + query);
+            final Object lock = new Object();
+            final List<NewsArticle>[] onlineArticles = new List[1];
+            final boolean[] onlineDone = {false};
+
+            HotListClient.searchOnline(query, new HotListClient.HotListCallback() {
+                @Override
+                public void onSuccess(List<NewsArticle> articles) {
+                    synchronized (lock) {
+                        onlineArticles[0] = articles;
+                        onlineDone[0] = true;
+                        lock.notify();
+                    }
+                }
+
+                @Override
+                public void onError(String error) {
+                    log.w("在线搜索失败: " + error);
+                    synchronized (lock) {
+                        onlineDone[0] = true;
+                        lock.notify();
+                    }
+                }
+            });
+
+            synchronized (lock) {
+                try {
+                    if (!onlineDone[0]) lock.wait(30000);
+                } catch (InterruptedException ignored) {}
+            }
+
+            // 3. 合并结果（按 URL 去重）
+            if (onlineArticles[0] != null && !onlineArticles[0].isEmpty()) {
+                Set<String> existingUrls = new HashSet<>();
+                for (EventCluster c : clusterMap.values()) {
+                    if (c.articleUrls != null) existingUrls.addAll(c.articleUrls);
+                }
+
+                for (NewsArticle a : onlineArticles[0]) {
+                    if (a.url != null && existingUrls.contains(a.url)) continue;
+                    String sourceName = a.source != null ? a.source.name : "在线搜索";
+                    EventCluster cluster = clusterMap.get(sourceName);
+                    if (cluster == null) {
+                        cluster = new EventCluster();
+                        cluster.title = sourceName + " 搜索结果";
+                        cluster.summary = a.title;
+                        cluster.articleUrls = new ArrayList<>();
+                        cluster.articleTitles = new ArrayList<>();
+                        cluster.sources = new ArrayList<>();
+                        clusterMap.put(sourceName, cluster);
+                    }
+                    if (a.url != null && !cluster.articleUrls.contains(a.url)) {
+                        cluster.articleUrls.add(a.url);
+                        if (a.url != null) existingUrls.add(a.url);
+                    }
+                    if (a.title != null && !cluster.articleTitles.contains(a.title)) {
+                        cluster.articleTitles.add(a.title);
+                    }
+                    if (sourceName != null && !cluster.sources.contains(sourceName)) {
+                        cluster.sources.add(sourceName);
+                    }
+                }
+            }
+
+            callback.onResult(new ArrayList<>(clusterMap.values()));
+        });
     }
 
     // ==================== 网络获取 + 聚类 + 缓存 ====================
@@ -197,7 +288,7 @@ public class NewsRepository {
 
         // 2) 抓取 NewsAPI 通用新闻
         if (hasNewsKey) {
-            new Thread(() -> {
+            AppExecutors.getInstance().networkIO().execute(() -> {
                 try {
                     NewsApi api = RetrofitClient.getNewsApi();
                     String apiKey = RetrofitClient.getNewsApiKey();
@@ -228,7 +319,7 @@ public class NewsRepository {
                     remaining[0]--;
                     if (remaining[0] == 0) onAllDone.run();
                 }
-            }).start();
+            });
         }
     }
 
@@ -324,7 +415,7 @@ public class NewsRepository {
     // ==================== 缓存写入 ====================
 
     private void saveToCache(List<NewsArticle> articles, List<EventCluster> clusters) {
-        new Thread(() -> {
+        AppExecutors.getInstance().diskIO().execute(() -> {
             database.eventDao().clearAll();
             database.newsDao().clearAll();
             log.d("已清除旧缓存");
@@ -360,6 +451,6 @@ public class NewsRepository {
                 database.newsDao().insertAll(List.of(ae));
             }
             log.d("写入 " + articles.size() + " 篇文章到缓存");
-        }).start();
+        });
     }
 }

@@ -2,6 +2,7 @@ package com.deepnews.app.ui.brief;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
@@ -16,8 +17,12 @@ import androidx.core.view.WindowInsetsCompat;
 import com.deepnews.app.BuildConfig;
 import com.deepnews.app.R;
 import com.deepnews.app.util.PrefsKeys;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 
 import okhttp3.MediaType;
+
+import dagger.hilt.android.AndroidEntryPoint;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -25,13 +30,18 @@ import okhttp3.RequestBody;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+@AndroidEntryPoint
 public class DailyBriefActivity extends AppCompatActivity {
 
     private TextView briefText;
     private Button refreshBtn;
     private ProgressBar loadingBar;
+    private ChipGroup chipGroup;
     private SharedPreferences prefs;
 
     @Override
@@ -51,9 +61,15 @@ public class DailyBriefActivity extends AppCompatActivity {
         briefText = findViewById(R.id.brief_content);
         refreshBtn = findViewById(R.id.brief_refresh);
         loadingBar = findViewById(R.id.brief_loading);
+        chipGroup = findViewById(R.id.brief_source_chip_group);
         ImageButton backBtn = findViewById(R.id.brief_back);
 
         backBtn.setOnClickListener(v -> finish());
+
+        // 恢复已保存的来源选择状态
+        restoreSourceSelection();
+        // 监听芯片选择变化
+        setupChipListeners();
 
         String today = java.text.SimpleDateFormat.getDateInstance().format(new java.util.Date());
         titleText.setText("今日深度简报 — " + today);
@@ -91,8 +107,10 @@ public class DailyBriefActivity extends AppCompatActivity {
                 JSONArray messages = new JSONArray();
                 JSONObject msg = new JSONObject();
                 msg.put("role", "user");
+                String sourceInfo = getSelectedSourcesInfo();
                 msg.put("content", "你是一位新闻编辑。请基于今天的新闻，生成一份「今日深度简报」，包含 5 件最重要的新闻事件。\n\n" +
                         "对每件事请提供：\n1. 事件标题（中文）\n2. 一句话概述\n3. 关键意义（为什么重要）\n\n" +
+                        sourceInfo +
                         "格式要求：简洁清晰，直接呈现内容，不要额外说明。");
                 messages.put(msg);
                 body.put("messages", messages);
@@ -155,5 +173,73 @@ public class DailyBriefActivity extends AppCompatActivity {
                 });
             }
         }).start();
+    }
+
+    /** 从 SharedPreferences 恢复已保存的来源选择 */
+    private void restoreSourceSelection() {
+        Set<String> savedSources = prefs.getStringSet(PrefsKeys.BRIEF_SOURCES, null);
+        if (savedSources == null) {
+            // 首次使用，默认全选，保存默认值
+            savedSources = new HashSet<>(Arrays.asList("今日头条", "微博热搜", "百度热榜", "抖音热榜"));
+            prefs.edit().putStringSet(PrefsKeys.BRIEF_SOURCES, savedSources).apply();
+        }
+        for (int i = 0; i < chipGroup.getChildCount(); i++) {
+            View child = chipGroup.getChildAt(i);
+            if (child instanceof Chip) {
+                Chip chip = (Chip) child;
+                chip.setChecked(savedSources.contains(chip.getText().toString()));
+            }
+        }
+    }
+
+    /** 为每个 Chip 设置选择变化监听，自动保存状态 */
+    private void setupChipListeners() {
+        for (int i = 0; i < chipGroup.getChildCount(); i++) {
+            View child = chipGroup.getChildAt(i);
+            if (child instanceof Chip) {
+                ((Chip) child).setOnCheckedChangeListener((buttonView, isChecked) -> saveSelectedSources());
+            }
+        }
+    }
+
+    /** 将当前选中的来源保存到 SharedPreferences */
+    private void saveSelectedSources() {
+        Set<String> selected = new HashSet<>();
+        for (int i = 0; i < chipGroup.getChildCount(); i++) {
+            View child = chipGroup.getChildAt(i);
+            if (child instanceof Chip) {
+                Chip chip = (Chip) child;
+                if (chip.isChecked()) {
+                    selected.add(chip.getText().toString());
+                }
+            }
+        }
+        prefs.edit().putStringSet(PrefsKeys.BRIEF_SOURCES, selected).apply();
+    }
+
+    /** 获取选中来源的描述文本，用于拼接到 AI 提示词中 */
+    private String getSelectedSourcesInfo() {
+        Set<String> selected = new HashSet<>();
+        for (int i = 0; i < chipGroup.getChildCount(); i++) {
+            View child = chipGroup.getChildAt(i);
+            if (child instanceof Chip) {
+                Chip chip = (Chip) child;
+                if (chip.isChecked()) {
+                    selected.add(chip.getText().toString());
+                }
+            }
+        }
+        if (selected.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("重点关注以下平台的新闻：");
+        boolean first = true;
+        for (String s : selected) {
+            if (!first) sb.append("、");
+            sb.append(s);
+            first = false;
+        }
+        sb.append("\n\n");
+        return sb.toString();
     }
 }

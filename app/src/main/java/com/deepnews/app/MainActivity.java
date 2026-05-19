@@ -1,6 +1,7 @@
 package com.deepnews.app;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -8,27 +9,29 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.animation.AnimationUtils;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.PermissionChecker;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import com.deepnews.app.data.NewsRepository;
 import com.deepnews.app.ui.account.AccountActivity;
 import com.deepnews.app.ui.bookmark.BookmarkActivity;
 import com.deepnews.app.ui.brief.DailyBriefActivity;
 import com.deepnews.app.ui.detail.DetailActivity;
 import com.deepnews.app.ui.home.EventAdapter;
 import com.deepnews.app.ui.home.MainViewModel;
-import com.deepnews.app.ui.home.MainViewModelFactory;
 import com.deepnews.app.ui.settings.SettingsActivity;
 import com.deepnews.app.util.Logger;
 import com.deepnews.app.util.PrefsKeys;
@@ -38,6 +41,9 @@ import com.google.android.material.chip.ChipGroup;
 
 import java.util.ArrayList;
 
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class MainActivity extends AppCompatActivity {
 
     private static final Logger log = Logger.get(MainActivity.class);
@@ -55,7 +61,16 @@ public class MainActivity extends AppCompatActivity {
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() == RESULT_OK) {
                     viewModel.reapplyFilter();
+                    SharedPreferences prefs = getSharedPreferences(PrefsKeys.FILE, MODE_PRIVATE);
+                    float scale = prefs.getFloat(PrefsKeys.FONT_SCALE, 1.0f);
+                    eventAdapter.setFontScale(scale);
                 }
+            });
+
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) log.d("通知权限已授予");
+                else log.d("通知权限被拒绝");
             });
 
     @Override
@@ -70,10 +85,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // ===== ViewModel =====
-        NewsRepository repository = NewsRepository.getInstance(this);
-        viewModel = new ViewModelProvider(this,
-                new MainViewModelFactory(repository, getSharedPreferences(PrefsKeys.FILE, MODE_PRIVATE)))
-                .get(MainViewModel.class);
+        viewModel = new ViewModelProvider(this).get(MainViewModel.class);
 
         // ===== UI 绑定 =====
         RecyclerView eventList = findViewById(R.id.event_list);
@@ -83,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
         skeletonLayout = findViewById(R.id.skeleton_layout);
         searchInput = findViewById(R.id.search_input);
         searchClear = findViewById(R.id.search_clear);
+        ProgressBar loadMoreProgress = findViewById(R.id.load_more_progress);
         ChipGroup chipGroup = findViewById(R.id.chip_group);
         BottomNavigationView bottomNav = findViewById(R.id.bottom_nav);
 
@@ -137,7 +150,9 @@ public class MainActivity extends AppCompatActivity {
 
         // 列表
         eventAdapter = new EventAdapter();
-        eventAdapter.setPrefs(getSharedPreferences(PrefsKeys.FILE, MODE_PRIVATE));
+        SharedPreferences sharedPrefs = getSharedPreferences(PrefsKeys.FILE, MODE_PRIVATE);
+        eventAdapter.setPrefs(sharedPrefs);
+        eventAdapter.setFontScale(sharedPrefs.getFloat(PrefsKeys.FONT_SCALE, 1.0f));
         eventAdapter.setOnEventClickListener(event -> {
             Intent intent = new Intent(this, DetailActivity.class);
             intent.putExtra(DetailActivity.EXTRA_TITLE, event.title);
@@ -152,6 +167,25 @@ public class MainActivity extends AppCompatActivity {
         });
         eventList.setAdapter(eventAdapter);
         eventList.setLayoutAnimation(AnimationUtils.loadLayoutAnimation(this, R.anim.layout_fade_in));
+
+        // 滚动加载更多
+        eventList.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
+                if (lm == null) return;
+                int lastVisiblePosition = lm.findLastVisibleItemPosition();
+                int totalItemCount = lm.getItemCount();
+                if (totalItemCount > 0 && lastVisiblePosition >= totalItemCount - 2) {
+                    Boolean hasMore = viewModel.getHasMore().getValue();
+                    Boolean isLoading = viewModel.getIsLoading().getValue();
+                    if (hasMore != null && hasMore && (isLoading == null || !isLoading)) {
+                        viewModel.loadMore();
+                    }
+                }
+            }
+        });
 
         // ===== 观察 ViewModel =====
         viewModel.getEvents().observe(this, clusters -> {
@@ -179,6 +213,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        viewModel.getIsLoadingMore().observe(this, loadingMore -> {
+            loadMoreProgress.setVisibility(loadingMore != null && loadingMore ? View.VISIBLE : View.GONE);
+        });
+
         // ===== 事件 =====
         swipeRefresh.setOnRefreshListener(() -> viewModel.fetchNews());
 
@@ -199,6 +237,15 @@ public class MainActivity extends AppCompatActivity {
             }
             return false;
         });
+
+        // ===== 通知权限（Android 13+） =====
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            if (PermissionChecker.checkSelfPermission(this,
+                    android.Manifest.permission.POST_NOTIFICATIONS)
+                    != PermissionChecker.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
 
         // ===== 数据 =====
         viewModel.loadCacheThenFetch();

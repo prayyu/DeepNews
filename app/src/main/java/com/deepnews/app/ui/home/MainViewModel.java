@@ -18,6 +18,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import javax.inject.Inject;
+
+import dagger.hilt.android.lifecycle.HiltViewModel;
+
+@HiltViewModel
 public class MainViewModel extends ViewModel {
 
     private static final Logger log = Logger.get(MainViewModel.class);
@@ -31,18 +36,21 @@ public class MainViewModel extends ViewModel {
     private final MutableLiveData<Boolean> isError = new MutableLiveData<>(false);
     private final MutableLiveData<Integer> currentSource = new MutableLiveData<>(0);
     private final MutableLiveData<Boolean> isSearching = new MutableLiveData<>(false);
+    private final MutableLiveData<Boolean> hasMore = new MutableLiveData<>(false);
+    private final MutableLiveData<Boolean> isLoadingMore = new MutableLiveData<>(false);
 
-    private NewsRepository repository;
-    private SharedPreferences prefs;
+    private final NewsRepository repository;
+    private final SharedPreferences prefs;
     private List<EventCluster> latestClusters = new ArrayList<>();
     private List<NewsArticle> latestArticles = new ArrayList<>();
     private boolean isFirstLoadDone = false;
+    private int loadMoreCount = 0;
+    private static final int MAX_LOAD_MORE = 3;
 
-    public void init(NewsRepository repository, SharedPreferences prefs) {
-        if (this.repository == null) {
-            this.repository = repository;
-            this.prefs = prefs;
-        }
+    @Inject
+    public MainViewModel(NewsRepository repository, SharedPreferences prefs) {
+        this.repository = repository;
+        this.prefs = prefs;
     }
 
     public LiveData<List<EventCluster>> getEvents() { return events; }
@@ -51,6 +59,8 @@ public class MainViewModel extends ViewModel {
     public LiveData<Boolean> getIsError() { return isError; }
     public LiveData<Integer> getCurrentSource() { return currentSource; }
     public LiveData<Boolean> getIsSearching() { return isSearching; }
+    public LiveData<Boolean> getHasMore() { return hasMore; }
+    public LiveData<Boolean> getIsLoadingMore() { return isLoadingMore; }
     public boolean isFirstLoadDone() { return isFirstLoadDone; }
 
     public String getCurrentSourceName() {
@@ -99,6 +109,9 @@ public class MainViewModel extends ViewModel {
         isLoading.setValue(true);
         isError.setValue(false);
         isSearching.setValue(false);
+        loadMoreCount = 0;
+        hasMore.setValue(true);
+        isLoadingMore.setValue(false);
         statusMessage.setValue("正在获取" + sourceName + "...");
 
         repository.fetchNews(source, new NewsRepository.OnResult() {
@@ -127,7 +140,7 @@ public class MainViewModel extends ViewModel {
         });
     }
 
-    /** 搜索缓存文章 */
+    /** 搜索（本地缓存 + 在线补充） */
     public void search(String query) {
         if (repository == null || query == null || query.trim().isEmpty()) {
             if (query == null || query.trim().isEmpty()) cancelSearch();
@@ -135,9 +148,9 @@ public class MainViewModel extends ViewModel {
         }
         isSearching.setValue(true);
         isLoading.setValue(true);
-        statusMessage.setValue("搜索: " + query);
+        statusMessage.setValue("正在在线搜索: " + query);
 
-        repository.searchArticles(query.trim(), clusters -> {
+        repository.searchOnline(query.trim(), clusters -> {
             events.postValue(clusters);
             isLoading.postValue(false);
             if (clusters.isEmpty()) {
@@ -146,6 +159,106 @@ public class MainViewModel extends ViewModel {
             } else {
                 statusMessage.postValue("找到 " + clusters.size() + " 个相关事件");
                 isError.postValue(false);
+            }
+        });
+    }
+
+    /** 加载更多内容 */
+    public void loadMore() {
+        if (repository == null) return;
+        Boolean loading = isLoading.getValue();
+        if (loading != null && loading) return;
+        Boolean more = hasMore.getValue();
+        if (more == null || !more) return;
+
+        // 保存当前已加载的 URL 用于去重
+        final List<EventCluster> existingClusters = new ArrayList<>(latestClusters);
+        final List<NewsArticle> existingArticles = new ArrayList<>(latestArticles);
+        final Set<String> existingUrls = new HashSet<>();
+        for (NewsArticle a : existingArticles) {
+            if (a.url != null) existingUrls.add(a.url);
+        }
+
+        Integer sourceIdx = currentSource.getValue();
+        String source = SOURCES[sourceIdx != null ? sourceIdx : 0];
+
+        isLoading.setValue(true);
+        isLoadingMore.setValue(true);
+        statusMessage.setValue("正在加载更多...");
+
+        repository.fetchNews(source, new NewsRepository.OnResult() {
+            @Override
+            public void onSuccess(List<EventCluster> clusters, List<NewsArticle> articles) {
+                List<NewsArticle> newArticles = new ArrayList<>();
+                for (NewsArticle a : articles) {
+                    if (a.url != null && !existingUrls.contains(a.url)) {
+                        newArticles.add(a);
+                    }
+                }
+
+                if (newArticles.isEmpty()) {
+                    isLoading.postValue(false);
+                    isLoadingMore.postValue(false);
+                    statusMessage.postValue("暂无更多内容");
+                    hasMore.postValue(false);
+                    return;
+                }
+
+                Set<String> newUrls = new HashSet<>();
+                for (NewsArticle a : newArticles) {
+                    if (a.url != null) newUrls.add(a.url);
+                }
+
+                List<EventCluster> newClusters = new ArrayList<>();
+                for (EventCluster c : clusters) {
+                    EventCluster nc = new EventCluster();
+                    nc.title = c.title;
+                    nc.summary = c.summary;
+                    nc.articleUrls = new ArrayList<>();
+                    nc.articleTitles = new ArrayList<>();
+                    nc.sources = new ArrayList<>();
+                    if (c.sources != null) nc.sources.addAll(c.sources);
+
+                    boolean hasNew = false;
+                    if (c.articleUrls != null) {
+                        for (int i = 0; i < c.articleUrls.size(); i++) {
+                            String url = c.articleUrls.get(i);
+                            if (newUrls.contains(url)) {
+                                nc.articleUrls.add(url);
+                                if (c.articleTitles != null && i < c.articleTitles.size()) {
+                                    nc.articleTitles.add(c.articleTitles.get(i));
+                                }
+                                hasNew = true;
+                            }
+                        }
+                    }
+                    if (hasNew && !nc.articleUrls.isEmpty()) {
+                        newClusters.add(nc);
+                    }
+                }
+
+                latestArticles = new ArrayList<>(existingArticles);
+                latestArticles.addAll(newArticles);
+                latestClusters = new ArrayList<>(existingClusters);
+                latestClusters.addAll(newClusters);
+
+                events.postValue(applyKeywordFilter(latestClusters));
+                isLoading.postValue(false);
+                isLoadingMore.postValue(false);
+                statusMessage.postValue("已加载 " + newArticles.size() + " 条新内容");
+                isError.postValue(false);
+
+                loadMoreCount++;
+                hasMore.postValue(loadMoreCount < MAX_LOAD_MORE);
+            }
+
+            @Override
+            public void onError(String error) {
+                isLoading.postValue(false);
+                isLoadingMore.postValue(false);
+                statusMessage.postValue("加载更多失败: " + error);
+                isError.postValue(true);
+                hasMore.postValue(false);
             }
         });
     }

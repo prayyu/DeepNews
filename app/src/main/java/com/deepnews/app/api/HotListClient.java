@@ -9,6 +9,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import com.deepnews.app.util.AppExecutors;
+
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -60,7 +62,7 @@ public class HotListClient {
                 .header("Accept", "application/json")
                 .build();
 
-        new Thread(() -> {
+        AppExecutors.getInstance().networkIO().execute(() -> {
             try {
                 Response response = getClient().newCall(request).execute();
                 if (!response.isSuccessful()) {
@@ -77,7 +79,7 @@ public class HotListClient {
             } catch (IOException e) {
                 callback.onError(sourceName + "请求失败: " + e.getLocalizedMessage());
             }
-        }).start();
+        });
     }
 
     /** 同时获取全部平台的热榜并合并 */
@@ -98,7 +100,7 @@ public class HotListClient {
                     .header("Accept", "application/json")
                     .build();
 
-            new Thread(() -> {
+            AppExecutors.getInstance().networkIO().execute(() -> {
                 try {
                     Response response = getClient().newCall(request).execute();
                     if (response.isSuccessful()) {
@@ -126,7 +128,66 @@ public class HotListClient {
                         }
                     }
                 }
-            }).start();
+            });
+        }
+    }
+
+    /** 在线搜索：获取所有平台数据并在本地按标题过滤 */
+    public static void searchOnline(String query, HotListCallback callback) {
+        if (query == null || query.trim().isEmpty()) {
+            callback.onError("搜索关键词为空");
+            return;
+        }
+        String finalQuery = query.trim().toLowerCase();
+        String[] sources = {SOURCE_TOUTIAO, SOURCE_WEIBO, SOURCE_BAIDU, SOURCE_DOUYIN};
+        String[] names = {"今日头条", "微博热搜", "百度热榜", "抖音热榜"};
+        List<NewsArticle> allArticles = Collections.synchronizedList(new ArrayList<>());
+        int[] remaining = {sources.length};
+        StringBuilder errorMsg = new StringBuilder();
+
+        for (int i = 0; i < sources.length; i++) {
+            final int idx = i;
+            String url = BASE_URL + sources[idx];
+
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 12) DeepNews/1.0")
+                    .header("Accept", "application/json")
+                    .build();
+
+            AppExecutors.getInstance().networkIO().execute(() -> {
+                try {
+                    Response response = getClient().newCall(request).execute();
+                    if (response.isSuccessful()) {
+                        String respBody = response.body() != null ? response.body().string() : "{}";
+                        List<NewsArticle> articles = parseResponse(respBody, names[idx], sources[idx]);
+                        for (NewsArticle a : articles) {
+                            if (a.title != null && a.title.toLowerCase().contains(finalQuery)) {
+                                allArticles.add(a);
+                            }
+                        }
+                    } else {
+                        synchronized (errorMsg) {
+                            errorMsg.append(names[idx]).append("失败 ");
+                        }
+                    }
+                } catch (IOException e) {
+                    synchronized (errorMsg) {
+                        errorMsg.append(names[idx]).append("失败 ");
+                    }
+                }
+
+                synchronized (remaining) {
+                    remaining[0]--;
+                    if (remaining[0] == 0) {
+                        if (allArticles.isEmpty()) {
+                            callback.onError("在线未找到匹配结果");
+                        } else {
+                            callback.onSuccess(new ArrayList<>(allArticles));
+                        }
+                    }
+                }
+            });
         }
     }
 

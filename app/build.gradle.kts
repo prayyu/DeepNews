@@ -2,6 +2,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.hilt)
 }
 
 // 从 local.properties 读取 API Key
@@ -84,6 +85,14 @@ dependencies {
     implementation(libs.lifecycle.livedata)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockito.core)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+
+    // Hilt
+    implementation(libs.hilt.android)
+    annotationProcessor(libs.hilt.compiler)
+
+    // WorkManager
+    implementation(libs.work.runtime)
 }

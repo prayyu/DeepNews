@@ -8,6 +8,8 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import com.deepnews.app.util.AppExecutors;
+
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -74,7 +76,7 @@ public class LlmClient {
                 .post(RequestBody.create(bodyJson, JSON))
                 .build();
 
-        new Thread(() -> {
+        AppExecutors.getInstance().networkIO().execute(() -> {
             try {
                 Response response = getClient().newCall(request).execute();
                 if (!response.isSuccessful()) {
@@ -109,7 +111,7 @@ public class LlmClient {
             } catch (IOException e) {
                 callback.onError("LLM 请求失败: " + e.getLocalizedMessage());
             }
-        }).start();
+        });
     }
 
     // === DeepSeek (OpenAI-compatible) 请求/响应结构 ===

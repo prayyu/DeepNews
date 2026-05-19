@@ -29,6 +29,7 @@ gradlew.bat assembleDebug
 ## 远程仓库
 
 - **阿里云效 Codeup**: https://codeup.aliyun.com/69c4a166405bafb07e124740/news.git
+- **GitHub 备份**: https://github.com/prayyu/DeepNews.git
 
 ## Architecture
 

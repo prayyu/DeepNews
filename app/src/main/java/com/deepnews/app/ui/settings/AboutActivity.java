@@ -12,6 +12,9 @@ import androidx.core.view.WindowInsetsCompat;
 import com.deepnews.app.BuildConfig;
 import com.deepnews.app.R;
 
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class AboutActivity extends AppCompatActivity {
 
     @Override

@@ -102,7 +102,7 @@ public class LocalAuthManager {
         prefs.edit().putString(PrefsKeys.USERS, users.toString()).apply();
     }
 
-    private String hashPassword(String password) throws Exception {
+    String hashPassword(String password) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(password.getBytes("UTF-8"));
         StringBuilder sb = new StringBuilder();

@@ -15,6 +15,8 @@ import com.deepnews.app.util.BadgeUtils;
 import com.deepnews.app.util.PrefsKeys;
 import com.deepnews.app.util.ReadTracker;
 
+import android.content.res.Resources;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -26,6 +28,8 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.ViewHolder> 
     private OnEventClickListener listener;
     private SharedPreferences prefs;
     private Set<String> readUrls = new HashSet<>();
+    private float fontScale = 1.0f;
+    private final Set<Integer> animatedPositions = new HashSet<>();
 
     public interface OnEventClickListener {
         void onEventClick(EventCluster event);
@@ -33,6 +37,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.ViewHolder> 
 
     public void setEvents(List<EventCluster> events) {
         this.events = events;
+        animatedPositions.clear();
         notifyDataSetChanged();
     }
 
@@ -44,7 +49,13 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.ViewHolder> 
         this.prefs = prefs;
         if (prefs != null) {
             this.readUrls = ReadTracker.getReadUrls(prefs);
+            this.fontScale = prefs.getFloat(PrefsKeys.FONT_SCALE, 1.0f);
         }
+    }
+
+    public void setFontScale(float scale) {
+        this.fontScale = scale;
+        notifyDataSetChanged();
     }
 
     public void refreshReadStatus() {
@@ -66,7 +77,9 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         EventCluster event = events.get(position);
         holder.titleText.setText(event.title != null ? event.title : "");
+        holder.titleText.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16 * fontScale);
         holder.summaryText.setText(event.summary != null ? event.summary : "");
+        holder.summaryText.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14 * fontScale);
 
         // 源标识圆形图标
         String badgeKey = event.sources != null && !event.sources.isEmpty()
@@ -108,6 +121,21 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.ViewHolder> 
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onEventClick(event);
         });
+
+        // 条目滑入动画（仅播放一次）
+        if (!animatedPositions.contains(position)) {
+            holder.itemView.setTranslationX(50);
+            holder.itemView.setAlpha(0f);
+            holder.itemView.postDelayed(() -> {
+                holder.itemView.animate()
+                        .translationX(0)
+                        .alpha(1f)
+                        .setDuration(300)
+                        .setInterpolator(new android.view.animation.BounceInterpolator())
+                        .withEndAction(() -> animatedPositions.add(position))
+                        .start();
+            }, position * 50L);
+        }
     }
 
     private boolean matchesKeyword(EventCluster event) {
@@ -127,6 +155,19 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.ViewHolder> 
     @Override
     public int getItemCount() {
         return events.size();
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull ViewHolder holder) {
+        super.onViewRecycled(holder);
+        int pos = holder.getAdapterPosition();
+        if (pos != RecyclerView.NO_POSITION) {
+            animatedPositions.remove(pos);
+        }
+        // 重置视图状态以便下次绑定
+        holder.itemView.setTranslationX(0);
+        holder.itemView.setAlpha(1f);
+        holder.itemView.animate().cancel();
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

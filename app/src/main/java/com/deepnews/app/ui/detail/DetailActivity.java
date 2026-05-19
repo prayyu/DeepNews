@@ -3,6 +3,7 @@ package com.deepnews.app.ui.detail;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -21,6 +22,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class DetailActivity extends AppCompatActivity {
 
     public static final String EXTRA_TITLE = "event_title";
@@ -49,6 +53,7 @@ public class DetailActivity extends AppCompatActivity {
 
         findViewById(R.id.detail_back).setOnClickListener(v -> finish());
 
+        ImageButton shareBtn = findViewById(R.id.detail_share);
         TextView titleText = findViewById(R.id.detail_title);
         TextView summaryText = findViewById(R.id.detail_summary);
         TextView sourcesText = findViewById(R.id.detail_sources);
@@ -65,6 +70,21 @@ public class DetailActivity extends AppCompatActivity {
         titleText.setText(title != null && !title.isEmpty() ? title : "事件详情");
         summaryText.setText(summary != null && !summary.isEmpty() ? summary : "暂无摘要信息");
         sourcesText.setText(sources != null && !sources.isEmpty() ? "信源: " + sources : "");
+
+        // 分享按钮
+        boolean hasShareContent = title != null && !title.isEmpty();
+        if (hasShareContent) {
+            shareBtn.setVisibility(android.view.View.VISIBLE);
+            shareBtn.setOnClickListener(v -> {
+                Intent share = new Intent(Intent.ACTION_SEND);
+                share.setType("text/plain");
+                String shareText = title;
+                if (summary != null && !summary.isEmpty()) shareText += "\n\n" + summary;
+                shareText += "\n\n—— 来自 DeepNews";
+                share.putExtra(Intent.EXTRA_TEXT, shareText);
+                startActivity(Intent.createChooser(share, "分享到"));
+            });
+        }
 
         boolean hasArticles = articleUrls != null && !articleUrls.isEmpty()
                 && articleTitles != null && !articleTitles.isEmpty();

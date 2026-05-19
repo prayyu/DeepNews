@@ -24,6 +24,9 @@ import com.deepnews.app.ui.webview.WebViewActivity;
 
 import java.util.List;
 
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class BookmarkActivity extends AppCompatActivity {
 
     private BookmarkListAdapter adapter;
